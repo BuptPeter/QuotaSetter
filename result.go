@@ -1,10 +1,19 @@
 package main
 
-type Result struct {
+type SetResult struct {
 	Code         int          `json:"code"`
 	IsSuccess    bool          `json:"success"`
 	Description  string       `json:"description"`
 
 }
 
-type Results []Result
+type SetResults []SetResult
+
+type GetResult struct {
+	Path       string    `json:"target"`
+	Max_bytes  int       `json:"max_bytes"`
+	Max_files  int       `json:"max_files"`
+
+}
+
+type GetResults []SetResult
