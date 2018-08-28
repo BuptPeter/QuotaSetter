@@ -18,7 +18,7 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", Index)
 	router.HandleFunc("/set", SetQuotas )
-	router.HandleFunc("/get/{todoPath}", GetQuotas)
+	router.HandleFunc("/get/{TargetPath}", GetQuotas)
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 
@@ -43,8 +43,38 @@ func SetQuotas(w http.ResponseWriter, r *http.Request) {
 
 func GetQuotas(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	todoId := vars["todoId"]
-	fmt.Fprintf(w, "Todo show: %s\n", todoId)
+	TargetPath := vars["TargetPath"]
+	log.Print("GetQuota,param:",TargetPath)
+	fmt.Fprintf(w, "Todo show: %s\n", TargetPath)
+	if(isDirExists(TargetPath)==false){//目标目录不存在 #11
+		log.Print("[ERROR]:target path is not exist.")
+		if error := json.NewEncoder(w).Encode(SetResult{Code:11,IsSuccess:false,Description:"target path is not exist."}); error != nil {
+			log.Print("[ERROR]:",error)
+		}
+		return
+	}
+	cmd := exec.Command("getfattr  ", "-n ceph.quota.max_files",TargetPath)
+	err := cmd.Run()
+	if err != nil {//获取max_files出错 #14
+	log.Print("[ERROR]:Do cmd failed: ", err)
+	if error := json.NewEncoder(w).Encode(SetResult{Code:14,IsSuccess:false,Description:err.Error()}); error != nil {
+		log.Print("[ERROR]:",error)
+		}
+	return
+	}
+	log.Print("[INFO]:Do cmd(get max_files) success.\n")
+
+	cmd = exec.Command("getfattr  ", "-n ceph.quota.max_bytes ",TargetPath)
+	err = cmd.Run()
+	if err != nil {//获取max_bytes 出错 #15
+		log.Print("[ERROR]:Do cmd failed: ", err)
+		if error := json.NewEncoder(w).Encode(SetResult{Code:15,IsSuccess:false,Description:err.Error()}); error != nil {
+			log.Print("[ERROR]:",error)
+		}
+		return
+	}
+	log.Print("[INFO]:Do cmd(get max_files) success.\n")
+
 }
 
 func DoSetQuotas(w http.ResponseWriter,todo Todo) {

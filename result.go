@@ -10,7 +10,9 @@ type SetResult struct {
 type SetResults []SetResult
 
 type GetResult struct {
-	Path       string    `json:"target"`
+	Code         int          `json:"code"`
+	IsSuccess    bool          `json:"success"`
+	Description  string       `json:"description"`
 	Max_bytes  int       `json:"max_bytes"`
 	Max_files  int       `json:"max_files"`
 
