@@ -13,8 +13,8 @@ type GetResult struct {
 	Code         int          `json:"code"`
 	IsSuccess    bool          `json:"success"`
 	Description  string       `json:"description"`
-	Max_bytes  int       `json:"max_bytes"`
-	Max_files  int       `json:"max_files"`
+	Max_bytes    string       `json:"max_bytes"`
+	Max_files    string       `json:"max_files"`
 
 }
 

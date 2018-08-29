@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
@@ -14,7 +15,7 @@ import (
 func main() {
 	customFormatter := new(log.TextFormatter)
 	customFormatter.FullTimestamp = true                      // 显示完整时间
-	customFormatter.TimestampFormat = "[2006-01-02 15:04:05]" // 时间格式
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"   // 时间格式
 	customFormatter.DisableTimestamp = false                  // 禁止显示时间
 	customFormatter.DisableColors = false                     // 禁止颜色显示
 	log.SetFormatter(customFormatter)
@@ -25,7 +26,7 @@ func main() {
 	router.HandleFunc("/", Index)
 	router.HandleFunc("/set", SetQuotas)
 	router.HandleFunc("/get/{TargetPath}", GetQuotas)
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":8081", router))
 
 }
 
@@ -46,41 +47,58 @@ func SetQuotas(w http.ResponseWriter, r *http.Request) {
 	}
 	DoSetQuotas(w, todo)
 }
-
 func GetQuotas(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	TargetPath := vars["TargetPath"]
-	log.Info("GetQuota,param:", TargetPath)
-	fmt.Fprintf(w, "Todo show: %s\n", TargetPath)
-	if isDirExists(TargetPath) == false { //目标目录不存在 #11
-		if error := json.NewEncoder(w).Encode(SetResult{Code: 11, IsSuccess: false, Description: "target path is not exist."}); error != nil {
+	var todo Todo //map[string]interface{}
+	body, _ := ioutil.ReadAll(r.Body)
+	err := json.Unmarshal(body, &todo)
+	if err != nil { //输入参数解析出错
+		if error := json.NewEncoder(w).Encode(SetResult{Code: 10, IsSuccess: false, Description: err.Error()}); err != nil {
+			log.Error(error)
+		}
+		log.Error("Can not decode data: %v\n", err)
+		return
+	}
+	DoGetQuotas(w, todo)
+}
+func DoGetQuotas(w http.ResponseWriter, todo Todo) {
+	log.Info("DoGetQuota,param:", todo.Path)
+	fmt.Fprintf(w, "Todo show: %s\n", todo.Path)
+	if isDirExists(todo.Path) == false { //目标目录不存在 #11
+		if error := json.NewEncoder(w).Encode(GetResult{Code: 11, IsSuccess: false, Description: "target path is not exist."}); error != nil {
 			log.Error(error)
 		}
 		log.Error("target path is not exist.")
 		return
 	}
-	cmd := exec.Command("getfattr  ", "-n ceph.quota.max_files", TargetPath)
-	err := cmd.Run()
+	var stdErr0,stdOut0 bytes.Buffer
+	cmd0 := exec.Command("/bin/bash", "-c","getfattr -n ceph.quota.max_files "+todo.Path)
+	cmd0.Stderr = &stdErr0
+	cmd0.Stdout = &stdOut0
+	err := cmd0.Run()
 	if err != nil { //获取max_files出错 #14
-		if error := json.NewEncoder(w).Encode(SetResult{Code: 14, IsSuccess: false, Description: err.Error()}); error != nil {
+		if error := json.NewEncoder(w).Encode(GetResult{Code: 14, IsSuccess: false, Description: stdErr0.String()}); error != nil {
 			log.Error(error)
 		}
-		log.Error("Do cmd failed: ", err)
+		log.Error("Do cmd failed: \n", stdErr0.String())
 		return
 	}
 	log.Info("Do cmd(get max_files) success.\n")
-
-	cmd = exec.Command("getfattr  ", "-n ceph.quota.max_bytes ", TargetPath)
-	err = cmd.Run()
+	var stdErr1,stdOut1 bytes.Buffer
+	cmd1 := exec.Command("/bin/bash", "-c","getfattr  -n ceph.quota.max_bytes "+todo.Path)
+	cmd1.Stderr = &stdErr1
+	cmd1.Stdout = &stdOut1
+	err = cmd1.Run()
 	if err != nil { //获取max_bytes 出错 #15
-		if error := json.NewEncoder(w).Encode(SetResult{Code: 15, IsSuccess: false, Description: err.Error()}); error != nil {
+		if error := json.NewEncoder(w).Encode(GetResult{Code: 15, IsSuccess: false, Description: stdErr1.String()}); error != nil {
 			log.Error(error)
 		}
-		log.Error("Do cmd failed: ", err)
+		log.Error("Do cmd failed: ",stdErr1.String())
 		return
 	}
-	log.Info("[INFO]:Do cmd(get max_files) success.\n")
-
+	log.Info("Do cmd(get max_files) success.\n")
+	if error := json.NewEncoder(w).Encode(GetResult{Code: 21, IsSuccess: true, Description: "Get quotas success." ,Max_bytes:stdOut0.String(),Max_files:stdOut1.String()}); error != nil {
+		log.Error(error)
+	}
 }
 
 func DoSetQuotas(w http.ResponseWriter, todo Todo) {
@@ -99,29 +117,32 @@ func DoSetQuotas(w http.ResponseWriter, todo Todo) {
 		log.Error("Invalid argument.")
 		return
 	}
-	//cmd := exec.Command("cmd", "/C")
 	if todo.Max_files >= 0 {
-		cmd := exec.Command("setfattr ", "-n ceph.quota.max_files", "-v "+string(todo.Max_files), todo.Path)
-		err := cmd.Run()
+		var out bytes.Buffer
+		//cmd0 := exec.Command("/bin/bash", "-c","\"setfattr ", "-n ceph.quota.max_files", "-v",string(todo.Max_files), todo.Path+"\"")
+		cmd0 := exec.Command("/bin/bash", "-c","setfattr  -n ceph.quota.max_files -v"+string(todo.Max_files)+" "+todo.Path)
+		cmd0.Stderr = &out
+		err := cmd0.Run()
 		if err != nil { //设置max_files出错 #12
-			if error := json.NewEncoder(w).Encode(SetResult{Code: 12, IsSuccess: false, Description: err.Error()}); error != nil {
+			if error := json.NewEncoder(w).Encode(SetResult{Code: 12, IsSuccess: false, Description: out.String()}); error != nil {
 				log.Error(error)
 			}
-			log.Error("Do cmd failed: ", err)
+			log.Error("Do cmd failed:\n ",out.String())
 			return
 		}
-		log.Info("Do cmd(set max_files) success.\n")
+		log.Info("Do cmd(set max_files) success. \n")
 	}
-	//cmd1 := exec.Command("cmd", "/C")
 	if todo.Max_bytes >= 0 {
-		cmd := exec.Command("setfattr ", "-n ceph.quota.max_bytes ", "-v "+string(todo.Max_bytes), todo.Path)
-		err := cmd.Run()
+		var out bytes.Buffer
+		//cmd1 := exec.Command("/bin/bash", "-c","\"setfattr ", "-n ceph.quota.max_bytes ", "-v "+string(todo.Max_bytes), todo.Path+"\"")
+		cmd1 := exec.Command("/bin/bash", "-c","setfattr -n ceph.quota.max_bytes -v "+string(todo.Max_bytes)+" "+todo.Path)
+		cmd1.Stderr = &out
+		err := cmd1.Run()
 		if err != nil { //设置max_bytes出错 #13
-
-			if error := json.NewEncoder(w).Encode(SetResult{Code: 13, IsSuccess: false, Description: err.Error()}); error != nil {
+			if error := json.NewEncoder(w).Encode(SetResult{Code: 13, IsSuccess: false, Description: out.String()}); error != nil {
 				log.Error(error)
 			}
-			log.Error("Do cmd failed: ", err)
+			log.Error("Do cmd failed: \n",out.String())
 			return
 		}
 		log.Info("Do cmd(set max_bytes) success.\n")
