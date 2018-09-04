@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Ingress
+metadata:
+  name: quota-setter-ing
+  namespace: datamgr
+spec:
+  rules:
+  - host: datamgr.ai.jd.care
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: quota-setter-svc
+          servicePort: 80
+      - path: /get
+        backend:
+          serviceName: quota-setter-svc
+          servicePort: 80
+      - path: /set
+        backend:
+          serviceName: quota-setter-svc
+          servicePort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quota-setter-svc
+  namespace: cephquota
+spec:
+  selector:
+    app: quota-setter
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quota-setter-deployment
+  namespace: cephquota
+  labels:
+    app: quota-setter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quota-setter
+  template:
+    metadata:
+      labels:
+        app: quota-setter
+    spec:
+      containers:
+      - name: quota-setter
+        image: ai-image.jd.com/datamgr/quota-setter:0.1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 25
+          periodSeconds: 20
+
