@@ -6,4 +6,6 @@ deploy-only:
 	kubectl create ns cephquota || true
 	kubectl delete -f deployment || true
 	kubectl apply -f deployment
+clean:
+	kubectl delete ns cephquota || true
 deploy: build deploy-only
