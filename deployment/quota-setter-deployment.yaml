@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: quota-setter
-        image: ai-image.jd.com/datamgr/quota-setter:0.1
+        image: ai-image.jd.com/ceph/cephfs-quota:0.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8081
