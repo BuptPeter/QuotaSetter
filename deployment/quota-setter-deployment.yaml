@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: quota-setter
-        image: ai-image.jd.com/ceph/cephfs-quota:0.1
+        image: peterbupt/quotasetter:0.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8081
@@ -52,7 +52,7 @@ metadata:
   namespace: cephquota
 spec:
   rules:
-  - host: cephquota.ai.jd.care
+  - host: cephquota.123.456
     http:
       paths:
       - path: /
