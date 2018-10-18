@@ -1,3 +1,17 @@
+## QuotaSetter Install and Deploy
+Install:
+```sh
+docker pull peterbupt/quotasetter
+
+docker run --name quota-setter -p 8081:8081 -d peterbupt/quotasetter
+```
+
+Deploy on kubernetes:
+```sh
+kubectl apply -f deployment
+
+```
+
 ## Ceph Quota Setter API 说明
 Ceph Quota Setter 一共提供两个基于HTTP的API接口:
 
