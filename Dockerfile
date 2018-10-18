@@ -1,4 +1,4 @@
-FROM ai-image.jd.com/go/golang:1.10
+FROM golang:1.10
 
 WORKDIR /go/src
 RUN mkdir -p jd.com/quota-setter
